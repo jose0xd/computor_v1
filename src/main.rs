@@ -16,7 +16,84 @@ impl Poly {
         Ok(Poly { coefficients })
     }
 
-    pub fn get_degree(&self) -> usize { return self.coefficients.len() - 1 }
+    pub fn get_degree(&self) -> i32 {
+        let degree: i32 = self.coefficients.len().try_into().unwrap();
+        degree - 1
+    }
+
+    pub fn solve(&self) -> Option<Vec<f32>> {
+        match self.get_degree() {
+            0 => {
+                if self.coefficients[0] == 0.0 {
+                    Some(vec![])
+                } else {
+                    None
+                }
+            }
+            1 => Some(vec![-self.coefficients[0] / self.coefficients[1]]),
+            2 => self.quadratic_formula(),
+            _ => None,
+        }
+    }
+
+    fn quadratic_formula(&self) -> Option<Vec<f32>> {
+        let a = self.coefficients[2];
+        let b = self.coefficients[1];
+        let c = self.coefficients[0];
+        let discriminant = b * b - 4.0 * a * c;
+        match discriminant {
+            d if d > 0.0 => Some(vec![
+                (-b + d.sqrt()) / (2.0 * a),
+                (-b - d.sqrt()) / (2.0 * a),
+            ]),
+            d if d == 0.0 => Some(vec![-b / (2.0 * a)]),
+            _ => None,
+        }
+    }
+
+    pub fn print(&self) {
+        print!("Reduced form: ");
+        self.print_polinomial();
+        println!("Polynomial degree: {}", self.get_degree());
+        let solutions = self.solve();
+        match self.get_degree() {
+            0 => {
+                if solutions.is_none() {
+                    println!("There no solution")
+                } else {
+                    println!("Each real number is a solution")
+                }
+            }
+            1 => println!("The solution is:\n{}", solutions.unwrap()[0]),
+            2 => {
+                if solutions.is_none() {
+                    println!("Discriminant is strictly negative, there is no real solutions")
+                } else if solutions.clone().unwrap().len() == 1 {
+                    println!("Discriminant is strictly zero, there is only one solution:\n{}", solutions.unwrap()[0])
+                } else {
+                    let sols = solutions.unwrap();
+                    println!("Discriminant is strictly positive, the two solutions are:\n{}\n{}", sols[0], sols[1])
+                }
+            }
+            _ => println!("The polynomial degree is strictly greater than 2, I can't solve."),
+        }
+    }
+
+    fn print_polinomial(&self) {
+        let mut degree = 0;
+        while degree < self.coefficients.len() && self.coefficients[degree] == 0.0 { degree += 1 }
+        if degree < self.coefficients.len() {
+            print!("{} * X^{}", self.coefficients[degree], degree);
+        }
+        degree += 1;
+        while degree < self.coefficients.len() {
+            if self.coefficients[degree] == 0.0 { degree += 1; continue; }
+            if self.coefficients[degree] < 0.0 { print!(" - ")} else { print!(" + ") }
+            print!("{} * X^{}", self.coefficients[degree].abs(), degree);
+            degree += 1;
+        }
+        println!(" = 0");
+    }
 }
 
 fn parse(line: &str) -> Result<Vec<f32>, ParseError> {
@@ -82,7 +159,8 @@ fn parse_indeterminate(indeterminate: &str) -> Result<i32, ParseError> {
     }
 }
 
-fn map2vec(map: HashMap<i32, f32>) -> Vec<f32> { // TODO refactor
+fn map2vec(map: HashMap<i32, f32>) -> Vec<f32> {
+    // TODO refactor
     let mut keys: Vec<&i32> = map.keys().collect();
     keys.sort();
     let mut vector: Vec<f32> = vec![];
@@ -95,11 +173,16 @@ fn map2vec(map: HashMap<i32, f32>) -> Vec<f32> { // TODO refactor
         vector.push(*map.get(&k).unwrap());
         i += 1;
     }
-    while vector.len() > 0 && vector[vector.len() - 1] == 0.0 { vector.pop(); }
+    while vector.len() > 0 && vector[vector.len() - 1] == 0.0 {
+        vector.pop();
+    }
     vector
 }
 
-fn simplify_equations(left_eq: HashMap<i32, f32>, right_eq: HashMap<i32, f32>) -> HashMap<i32, f32> {
+fn simplify_equations(
+    left_eq: HashMap<i32, f32>,
+    right_eq: HashMap<i32, f32>,
+) -> HashMap<i32, f32> {
     let mut equation = left_eq.clone();
     for (k, v) in right_eq {
         let monomial = equation.entry(k).or_insert(0.0);
@@ -120,13 +203,24 @@ fn main() {
         return;
     }
     let poly = poly.unwrap();
-    println!("{:?}", poly.coefficients);
-    println!("{}", poly.get_degree());
+    poly.print();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn equivalent_solution(left: Vec<f32>, right: Vec<f32>) -> bool {
+        if left.len() != right.len() {
+            return false;
+        }
+        let wrong = left
+            .iter()
+            .zip(right)
+            .filter(|&(a, b)| (a - b).abs() > 0.00001)
+            .count();
+        wrong == 0
+    }
 
     #[test]
     fn error_when_no_equal_sign() {
@@ -163,5 +257,38 @@ mod tests {
         let poly = Poly::new(line).unwrap();
         assert_eq!(poly.coefficients, coefficients);
         assert_eq!(poly.get_degree(), 2);
+    }
+
+    #[test]
+    fn test_solve() {
+        let line = "5 * X^0 + 4 * X^1 - 9.3 * X^2 = 1 * X^0";
+        let poly = Poly::new(line).unwrap();
+        let solutions = poly.solve().unwrap();
+        assert!(equivalent_solution(solutions, vec![-0.475131, 0.905239]));
+
+        let line = "5 * X^0 + 4 * X^1 = 4 * X^0";
+        let poly = Poly::new(line).unwrap();
+        let solutions = poly.solve().unwrap();
+        assert!(equivalent_solution(solutions, vec![-0.25]));
+
+        let line = "8 * X^0 - 6 * X^1 + 0 * X^2 - 5.6 * X^3 = 3 * X^0";
+        let poly = Poly::new(line).unwrap();
+        let solutions = poly.solve();
+        assert_eq!(solutions, None);
+
+        let line = "5 + 4 * X + X^2= X^2";
+        let poly = Poly::new(line).unwrap();
+        let solutions = poly.solve().unwrap();
+        assert!(equivalent_solution(solutions, vec![-1.25]));
+
+        let line = "42 * X^0= 42 * X^0";
+        let poly = Poly::new(line).unwrap();
+        let solutions = poly.solve();
+        assert_eq!(solutions, None);
+
+        let line = "3 = 0";
+        let poly = Poly::new(line).unwrap();
+        let solutions = poly.solve();
+        assert_eq!(solutions, None);
     }
 }
