@@ -1,4 +1,4 @@
-use std::{env, collections::HashMap};
+use std::{collections::HashMap, env};
 
 #[derive(Debug, PartialEq)]
 enum ParseError {
@@ -54,7 +54,14 @@ impl Poly {
     pub fn print(&self) {
         print!("Reduced form: ");
         self.print_polinomial();
-        println!("Polynomial degree: {}", self.get_degree());
+        println!(
+            "Polynomial degree: {}",
+            if self.get_degree() > -1 {
+                self.get_degree()
+            } else {
+                0
+            }
+        );
         let solutions = self.solve();
         match self.get_degree() {
             0 => {
@@ -66,29 +73,46 @@ impl Poly {
             }
             1 => println!("The solution is:\n{}", solutions.unwrap()[0]),
             2 => {
-                if solutions.is_none() {
-                    println!("Discriminant is strictly negative, there is no real solutions")
-                } else if solutions.clone().unwrap().len() == 1 {
-                    println!("Discriminant is strictly zero, there is only one solution:\n{}", solutions.unwrap()[0])
+                if let Some(solutions) = solutions {
+                    if solutions.len() == 1 {
+                        println!(
+                            "Discriminant is strictly zero, there is only one solution:\n{}",
+                            solutions[0]
+                        )
+                    } else {
+                        println!(
+                            "Discriminant is strictly positive, the two solutions are:\n{}\n{}",
+                            solutions[0], solutions[1]
+                        )
+                    }
                 } else {
-                    let sols = solutions.unwrap();
-                    println!("Discriminant is strictly positive, the two solutions are:\n{}\n{}", sols[0], sols[1])
+                    println!("Discriminant is strictly negative, there is no real solutions.")
                 }
             }
+            -1 => println!("0 = 0"),
             _ => println!("The polynomial degree is strictly greater than 2, I can't solve."),
         }
     }
 
     fn print_polinomial(&self) {
         let mut degree = 0;
-        while degree < self.coefficients.len() && self.coefficients[degree] == 0.0 { degree += 1 }
+        while degree < self.coefficients.len() && self.coefficients[degree] == 0.0 {
+            degree += 1
+        }
         if degree < self.coefficients.len() {
             print!("{} * X^{}", self.coefficients[degree], degree);
         }
         degree += 1;
         while degree < self.coefficients.len() {
-            if self.coefficients[degree] == 0.0 { degree += 1; continue; }
-            if self.coefficients[degree] < 0.0 { print!(" - ")} else { print!(" + ") }
+            if self.coefficients[degree] == 0.0 {
+                degree += 1;
+                continue;
+            }
+            if self.coefficients[degree] < 0.0 {
+                print!(" - ")
+            } else {
+                print!(" + ")
+            }
             print!("{} * X^{}", self.coefficients[degree].abs(), degree);
             degree += 1;
         }
@@ -109,7 +133,7 @@ fn parse(line: &str) -> Result<Vec<f32>, ParseError> {
 }
 
 fn parse_equation(equation: &str) -> Result<HashMap<i32, f32>, ParseError> {
-    let equation = equation.replacen("-", "+-", equation.len());
+    let equation = equation.replacen('-', "+-", equation.len());
     let monomial: Vec<&str> = equation.split('+').collect();
     let mut equation: HashMap<i32, f32> = HashMap::new();
     for m in monomial {
@@ -126,20 +150,22 @@ fn parse_monomial(monomial: &str) -> Result<(f32, i32), ParseError> {
     if elements.len() == 2 {
         let coefficient = elements[0].parse::<f32>();
         let degree = parse_indeterminate(elements[1]);
-        if coefficient.is_ok() && degree.is_ok() {
-            return Ok((coefficient.unwrap(), degree.unwrap()));
+        if let Ok(coefficient) = coefficient {
+            if let Ok(degree) = degree {
+                return Ok((coefficient, degree));
+            }
         }
-    } else if elements.len() == 1 && elements[0].contains("X") {
+    } else if elements.len() == 1 && elements[0].contains('X') {
         let coefficient = 1.0;
         let degree = parse_indeterminate(elements[0]);
-        if degree.is_ok() {
-            return Ok((coefficient, degree.unwrap()));
+        if let Ok(degree) = degree {
+            return Ok((coefficient, degree));
         }
     } else {
         let coefficient = elements[0].parse::<f32>();
         let degree = 0;
-        if coefficient.is_ok() {
-            return Ok((coefficient.unwrap(), degree));
+        if let Ok(coefficient) = coefficient {
+            return Ok((coefficient, degree));
         }
     }
     Err(ParseError::ParseNumError)
@@ -160,7 +186,6 @@ fn parse_indeterminate(indeterminate: &str) -> Result<i32, ParseError> {
 }
 
 fn map2vec(map: HashMap<i32, f32>) -> Vec<f32> {
-    // TODO refactor
     let mut keys: Vec<&i32> = map.keys().collect();
     keys.sort();
     let mut vector: Vec<f32> = vec![];
@@ -170,10 +195,10 @@ fn map2vec(map: HashMap<i32, f32>) -> Vec<f32> {
             vector.push(0.0);
             i += 1;
         }
-        vector.push(*map.get(&k).unwrap());
+        vector.push(*map.get(k).unwrap());
         i += 1;
     }
-    while vector.len() > 0 && vector[vector.len() - 1] == 0.0 {
+    while !vector.is_empty() && vector[vector.len() - 1] == 0.0 {
         vector.pop();
     }
     vector
@@ -183,7 +208,7 @@ fn simplify_equations(
     left_eq: HashMap<i32, f32>,
     right_eq: HashMap<i32, f32>,
 ) -> HashMap<i32, f32> {
-    let mut equation = left_eq.clone();
+    let mut equation = left_eq;
     for (k, v) in right_eq {
         let monomial = equation.entry(k).or_insert(0.0);
         *monomial -= v;
