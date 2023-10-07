@@ -220,6 +220,7 @@ fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() != 1 {
         println!("Wrong numbers of arguments");
+        println!("Usage: ./computor \"5 * X^0 + 4 * X^1 - 9.3 * X^2 = 1 * X^0\"");
         return;
     }
     let poly = Poly::new(args.first().unwrap());
