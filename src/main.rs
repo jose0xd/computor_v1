@@ -89,7 +89,7 @@ impl Poly {
                     println!("Discriminant is strictly negative, there is no real solutions.")
                 }
             }
-            -1 => println!("0 = 0"),
+            -1 => println!("Each real number is a solution."),
             _ => println!("The polynomial degree is strictly greater than 2, I can't solve."),
         }
     }
@@ -115,6 +115,9 @@ impl Poly {
             }
             print!("{} * X^{}", self.coefficients[degree].abs(), degree);
             degree += 1;
+        }
+        if self.coefficients.len() == 0 {
+            print!("0");
         }
         println!(" = 0");
     }

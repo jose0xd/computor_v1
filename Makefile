@@ -12,7 +12,7 @@ clean:
 	cargo clean
 
 fclean: clean
-	rm ${NAME}
+	rm -f ${NAME}
 
 re: fclean
 	@${MAKE}
