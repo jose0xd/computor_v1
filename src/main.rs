@@ -141,7 +141,13 @@ fn parse_equation(equation: &str) -> Result<HashMap<i32, f32>, ParseError> {
     let mut equation: HashMap<i32, f32> = HashMap::new();
     for m in monomial {
         match parse_monomial(m) {
-            Ok((coef, degree)) => equation.insert(degree, coef),
+            Ok((coef, degree)) => {
+                if equation.contains_key(&degree) {
+                    equation.insert(degree, coef + equation[&degree]);
+                } else {
+                    equation.insert(degree, coef);
+                }
+            },
             Err(_) => return Err(ParseError::ParseNumError),
         };
     }
@@ -164,6 +170,8 @@ fn parse_monomial(monomial: &str) -> Result<(f32, i32), ParseError> {
         if let Ok(degree) = degree {
             return Ok((coefficient, degree));
         }
+    } else if elements.len() == 1 && elements[0].len() == 0 {
+        return Ok((0., 0));
     } else {
         let coefficient = elements[0].parse::<f32>();
         let degree = 0;
